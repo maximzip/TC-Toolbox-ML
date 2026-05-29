@@ -48,19 +48,51 @@ def tipifica_variables(
 ) -> pd.DataFrame:
     """
     Sugiere el tipo estadístico de cada columna de un DataFrame.
-
     Argumentos:
         df (pd.DataFrame): DataFrame a analizar.
         umbral_categoria (int): Número mínimo de valores únicos para que una
             variable deje de considerarse categórica.
         umbral_continua (float): Porcentaje mínimo de cardinalidad (0-100)
             para considerar una variable como numérica continua.
-
     Retorna:
         pd.DataFrame: DataFrame con columnas 'nombre_variable' y 'tipo_sugerido'.
         Retorna None si algún argumento no es válido.
     """
-    pass
+
+    # Validaciones de entrada
+    if not isinstance(df, pd.DataFrame):
+        print("Error: 'df' debe ser un pandas DataFrame.")
+        return None
+    if not isinstance(umbral_categoria, int) or umbral_categoria <= 0:
+        print("Error: 'umbral_categoria' debe ser un entero positivo.")
+        return None
+    if not isinstance(umbral_continua, (int, float)) or not (0 <= umbral_continua <= 100):
+        print("Error: 'umbral_continua' debe ser un número entre 0 y 100.")
+        return None
+
+
+    # Clasificación de variables
+    resultados = []
+    for columna in df.columns:
+        cardinalidad = df[columna].nunique(dropna=True)
+        porcentaje_cardinalidad = (cardinalidad / len(df)) * 100
+
+        # Lógica en cascada
+        if cardinalidad == 2:
+            tipo = "Binaria"
+        elif cardinalidad < umbral_categoria:
+            tipo = "Categórica"
+        elif (cardinalidad >= umbral_categoria and
+              porcentaje_cardinalidad >= umbral_continua):
+            tipo = "Numérica Continua"
+        else:
+            tipo = "Numérica Discreta"
+        resultados.append({
+            "nombre_variable": columna,
+            "tipo_sugerido": tipo
+        })
+
+    return pd.DataFrame(resultados)
 
 
 # ---------------------------------------------------------------------------
