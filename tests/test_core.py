@@ -44,3 +44,32 @@ def test_describe_df_retorna_none_con_input_invalido():
     assert describe_df([1, 2, 3]) is None
 
 
+# ===========================================================================
+# tipifica_variables
+# ===========================================================================
+
+def test_tipifica_variables_devuelve_dataframe():
+    """Caso correcto: input válido → retorna DataFrame."""
+    df = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
+    resultado = tipifica_variables(df, umbral_categoria=10, umbral_continua=30.0)
+    assert isinstance(resultado, pd.DataFrame)
+
+
+def test_tipifica_variables_columnas_correctas():
+    """El resultado tiene las columnas 'nombre_variable' y 'tipo_sugerido'."""
+    df = pd.DataFrame({'a': [1, 2, 3]})
+    resultado = tipifica_variables(df, umbral_categoria=10, umbral_continua=30.0)
+    assert set(resultado.columns) == {'nombre_variable', 'tipo_sugerido'}
+
+
+def test_tipifica_variables_detecta_binaria():
+    """Una columna con exactamente 2 valores únicos se clasifica como Binaria."""
+    df = pd.DataFrame({'sexo': ['M', 'F', 'M', 'F', 'M']})
+    resultado = tipifica_variables(df, umbral_categoria=10, umbral_continua=30.0)
+    assert resultado.loc[resultado['nombre_variable'] == 'sexo', 'tipo_sugerido'].values[0] == 'Binaria'
+
+
+def test_tipifica_variables_retorna_none_umbral_invalido():
+    """Caso de error: umbral_categoria no entero → retorna None."""
+    df = pd.DataFrame({'a': [1, 2, 3]})
+    assert tipifica_variables(df, umbral_categoria=3.5, umbral_continua=30.0) is None
