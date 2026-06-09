@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+from scipy.stats import pearsonr
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +66,36 @@ def tipifica_variables(
     pass
 
 
+def _validar_regresion_numerica(
+    df: pd.DataFrame,
+    target_col: str,
+    umbral_corr: float,
+    pvalue: float = None
+) -> bool:
+    """Valida argumentos comunes de las funciones numéricas de regresión."""
+    if not isinstance(df, pd.DataFrame):
+        print(f"Error: se esperaba un pd.DataFrame, se recibió {type(df)}")
+        return False
+
+    if target_col not in df.columns:
+        print(f"Error: target_col '{target_col}' no existe en el DataFrame")
+        return False
+
+    if not pd.api.types.is_numeric_dtype(df[target_col]):
+        print(f"Error: target_col '{target_col}' debe ser numérica")
+        return False
+
+    if not isinstance(umbral_corr, float) or not 0 <= umbral_corr <= 1:
+        print("Error: umbral_corr debe ser un float entre 0 y 1")
+        return False
+
+    if pvalue is not None and (not isinstance(pvalue, float) or not 0 <= pvalue <= 1):
+        print("Error: pvalue debe ser None o un float entre 0 y 1")
+        return False
+
+    return True
+
+
 # ---------------------------------------------------------------------------
 # get_features_num_regression
 # ---------------------------------------------------------------------------
@@ -81,14 +114,30 @@ def get_features_num_regression(
         target_col (str): Nombre de la columna target (debe ser numérica).
         umbral_corr (float): Umbral mínimo de correlación de Pearson en valor
             absoluto (entre 0 y 1).
-        pvalue (float, opcional): Si se especifica, filtra además por
-            significancia estadística (p-valor < pvalue).
+        pvalue (float, opcional): Si se indica, aplica un filtro adicional
+            según el p-valor.
 
     Retorna:
         list: Lista con los nombres de las columnas que superan los criterios.
         Retorna None si algún argumento no es válido.
     """
-    pass
+    if not _validar_regresion_numerica(df, target_col, umbral_corr, pvalue):
+        return None
+
+    columnas_validas = []
+    columnas_numericas = df.select_dtypes(include=np.number).columns.drop(target_col, errors="ignore")
+
+    for columna in columnas_numericas:
+        # Pearson necesita pares completos y al menos dos valores no constantes.
+        datos = df[[columna, target_col]].dropna()
+        if len(datos) < 2 or datos[columna].nunique() < 2 or datos[target_col].nunique() < 2:
+            continue
+
+        corr, p_valor = pearsonr(datos[columna], datos[target_col])
+        if abs(corr) >= umbral_corr and (pvalue is None or p_valor < pvalue):
+            columnas_validas.append(columna)
+
+    return columnas_validas
 
 
 # ---------------------------------------------------------------------------
@@ -111,13 +160,51 @@ def plot_features_num_regression(
         columns (list): Lista de columnas candidatas. Si está vacía, se usan
             todas las columnas numéricas del DataFrame.
         umbral_corr (float): Umbral mínimo de correlación (entre 0 y 1).
-        pvalue (float, opcional): Umbral de significancia estadística.
+        pvalue (float, opcional): Filtro adicional según el p-valor.
 
     Retorna:
         list: Lista de columnas representadas.
         Retorna None si algún argumento no es válido.
     """
-    pass
+    if not _validar_regresion_numerica(df, target_col, umbral_corr, pvalue):
+        return None
+
+    if not isinstance(columns, list):
+        print("Error: columns debe ser una lista")
+        return None
+
+    if columns:
+        columnas_inexistentes = [col for col in columns if col not in df.columns]
+        if columnas_inexistentes:
+            print(f"Error: columns contiene columnas inexistentes: {columnas_inexistentes}")
+            return None
+
+        columnas_no_numericas = [col for col in columns if not pd.api.types.is_numeric_dtype(df[col])]
+        if columnas_no_numericas:
+            print(f"Error: columns contiene columnas no numéricas: {columnas_no_numericas}")
+            return None
+
+        df_candidatas = df[columns + [target_col]].copy() if target_col not in columns else df[columns].copy()
+    else:
+        df_candidatas = df.copy()
+
+    columnas_representadas = get_features_num_regression(
+        df=df_candidatas,
+        target_col=target_col,
+        umbral_corr=umbral_corr,
+        pvalue=pvalue
+    )
+
+    if columnas_representadas is None:
+        return None
+
+    # Se pintan grupos de hasta cinco variables predictoras, incluyendo el target en cada pairplot.
+    for inicio in range(0, len(columnas_representadas), 5):
+        grupo = columnas_representadas[inicio:inicio + 5]
+        sns.pairplot(df[grupo + [target_col]].dropna())
+        plt.show()
+
+    return columnas_representadas
 
 
 # ---------------------------------------------------------------------------
