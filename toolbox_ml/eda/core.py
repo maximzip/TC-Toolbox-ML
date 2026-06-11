@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, mannwhitneyu, f_oneway
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -51,19 +51,51 @@ def tipifica_variables(
 ) -> pd.DataFrame:
     """
     Sugiere el tipo estadístico de cada columna de un DataFrame.
-
     Argumentos:
         df (pd.DataFrame): DataFrame a analizar.
         umbral_categoria (int): Número mínimo de valores únicos para que una
             variable deje de considerarse categórica.
         umbral_continua (float): Porcentaje mínimo de cardinalidad (0-100)
             para considerar una variable como numérica continua.
-
     Retorna:
         pd.DataFrame: DataFrame con columnas 'nombre_variable' y 'tipo_sugerido'.
         Retorna None si algún argumento no es válido.
     """
-    pass
+
+    # Validaciones de entrada
+    if not isinstance(df, pd.DataFrame):
+        print("Error: 'df' debe ser un pandas DataFrame.")
+        return None
+    if not isinstance(umbral_categoria, int) or umbral_categoria <= 0:
+        print("Error: 'umbral_categoria' debe ser un entero positivo.")
+        return None
+    if not isinstance(umbral_continua, (int, float)) or not (0 <= umbral_continua <= 100):
+        print("Error: 'umbral_continua' debe ser un número entre 0 y 100.")
+        return None
+
+
+    # Clasificación de variables
+    resultados = []
+    for columna in df.columns:
+        cardinalidad = df[columna].nunique(dropna=True)
+        porcentaje_cardinalidad = (cardinalidad / len(df)) * 100
+
+        # Lógica en cascada
+        if cardinalidad == 2:
+            tipo = "Binaria"
+        elif cardinalidad < umbral_categoria:
+            tipo = "Categórica"
+        elif (cardinalidad >= umbral_categoria and
+              porcentaje_cardinalidad >= umbral_continua):
+            tipo = "Numérica Continua"
+        else:
+            tipo = "Numérica Discreta"
+        resultados.append({
+            "nombre_variable": columna,
+            "tipo_sugerido": tipo
+        })
+
+    return pd.DataFrame(resultados)
 
 
 def _validar_regresion_numerica(
@@ -206,6 +238,38 @@ def plot_features_num_regression(
 
     return columnas_representadas
 
+# ---------------------------------------------------------------------------
+# _validar_regresion_categorica
+# ---------------------------------------------------------------------------
+
+def _validar_regresion_categorica(
+    df: pd.DataFrame,
+    target_col: str,
+    pvalue: float
+) -> bool:
+    """Valida los argumentos comunes de las funciones categóricas de regresión."""
+    # El input principal debe ser un DataFrame, si no, no podemos operar.
+    if not isinstance(df, pd.DataFrame):
+        print(f"Error: se esperaba un pd.DataFrame, se recibió {type(df)}")
+        return False
+
+    # La columna objetivo tiene que existir realmente en el DataFrame.
+    if target_col not in df.columns:
+        print(f"Error: target_col '{target_col}' no existe en el DataFrame")
+        return False
+
+    # Los tests comparan valores numéricos del target entre grupos: debe ser numérica.
+    if not pd.api.types.is_numeric_dtype(df[target_col]):
+        print(f"Error: target_col '{target_col}' debe ser numérica")
+        return False
+
+    # El nivel de significancia es una probabilidad: float acotado entre 0 y 1.
+    if not isinstance(pvalue, float) or not 0 <= pvalue <= 1:
+        print("Error: pvalue debe ser un float entre 0 y 1")
+        return False
+
+    return True
+
 
 # ---------------------------------------------------------------------------
 # get_features_cat_regression
@@ -230,7 +294,45 @@ def get_features_cat_regression(
         list: Lista con los nombres de las columnas categóricas significativas.
         Retorna None si algún argumento no es válido.
     """
-    pass
+    # Abortamos cuanto antes si la entrada no cumple las condiciones mínimas.
+    if not _validar_regresion_categorica(df, target_col, pvalue):
+        return None
+
+    # Aquí iremos acumulando las columnas que pasen el test.
+    columnas_significativas = []
+
+    # Tratamos como categórica cualquier columna no numérica (object, category, bool...).
+    columnas_categoricas = df.select_dtypes(exclude=np.number).columns
+
+    for columna in columnas_categoricas:
+        # Para cada categoría extraemos los valores del target asociados, sin nulos.
+        # df[[columna, target_col]].dropna() elimina filas con NaN en cualquiera de las dos.
+        grupos = [
+            grupo[target_col].dropna().values
+            for _, grupo in df[[columna, target_col]].dropna().groupby(columna, observed=True)
+        ]
+
+        # Descartamos categorías que se hayan quedado sin datos tras limpiar nulos.
+        grupos = [g for g in grupos if len(g) > 0]
+
+        # Un test de comparación necesita como mínimo dos grupos; si no, saltamos.
+        if len(grupos) < 2:
+            continue
+
+        # Elegimos el test en función del número de categorías presentes:
+        if len(grupos) == 2:
+            # Dos grupos -> Mann-Whitney U (compara distribuciones, no asume normalidad).
+            _, p_valor = mannwhitneyu(grupos[0], grupos[1])
+        else:
+            # Tres o más grupos -> ANOVA de un factor (compara las medias).
+            # El operador * desempaqueta la lista de grupos como argumentos sueltos.
+            _, p_valor = f_oneway(*grupos)
+
+        # Si el p-valor es menor que el umbral, la relación es significativa.
+        if p_valor < pvalue:
+            columnas_significativas.append(columna)
+
+    return columnas_significativas
 
 
 # ---------------------------------------------------------------------------
@@ -261,4 +363,72 @@ def plot_features_cat_regression(
         list: Lista de columnas representadas.
         Retorna None si algún argumento no es válido.
     """
-    pass
+    # Mismas validaciones que en _validar_regresion_categorica
+    if not _validar_regresion_categorica(df, target_col, pvalue):
+        return None
+
+    # columns debe ser una lista para poder iterar y concatenar más abajo.
+    if not isinstance(columns, list):
+        print("Error: columns debe ser una lista")
+        return None
+
+    if columns:
+        # Si el usuario pasa columnas, comprobamos que todas existan en el DataFrame.
+        columnas_inexistentes = [col for col in columns if col not in df.columns]
+        if columnas_inexistentes:
+            print(f"Error: columns contiene columnas inexistentes: {columnas_inexistentes}")
+            return None
+        candidatas = columns
+    else:
+        # Si no se indican columnas, usamos todas las categóricas del DataFrame.
+        candidatas = df.select_dtypes(exclude=np.number).columns.tolist()
+
+    # Reutilizamos get_features_cat_regression sobre un subconjunto con solo las
+    # candidatas y el target, evitando duplicar la lógica de los tests.
+    # El condicional asegura que el target se incluya sin repetirlo si ya estaba.
+    df_filtrado = df[candidatas + [target_col]] if target_col not in candidatas else df[candidatas]
+    columnas_representadas = get_features_cat_regression(df_filtrado, target_col, pvalue)
+
+    # Propagamos el None si la validación interna falló.
+    if columnas_representadas is None:
+        return None
+
+    if with_individual_plot:
+        # Modo individual: una figura independiente por cada variable significativa.
+        for columna in columnas_representadas:
+            plt.figure()
+            # Superponemos un histograma del target por cada categoría.
+            for categoria in df[columna].dropna().unique():
+                subconjunto = df[df[columna] == categoria][target_col].dropna()
+                # alpha=0.5 da transparencia para distinguir histogramas solapados.
+                plt.hist(subconjunto, alpha=0.5, label=str(categoria))
+            plt.title(f"{target_col} según {columna}")
+            plt.xlabel(target_col)
+            plt.ylabel("Frecuencia")
+            plt.legend(title=columna)
+            plt.show()
+    elif columnas_representadas:
+        # Modo agrupado: todas las variables en una única figura con subplots apilados.
+        n = len(columnas_representadas)
+        fig, axes = plt.subplots(n, 1, figsize=(8, 4 * n))
+
+        # Con una sola variable, subplots devuelve un eje suelto y no un array;
+        # lo envolvemos en lista para poder iterar de forma uniforme.
+        if n == 1:
+            axes = [axes]
+
+        # Cada eje recibe los histogramas de una variable categórica.
+        for ax, columna in zip(axes, columnas_representadas):
+            for categoria in df[columna].dropna().unique():
+                subconjunto = df[df[columna] == categoria][target_col].dropna()
+                ax.hist(subconjunto, alpha=0.5, label=str(categoria))
+            ax.set_title(f"{target_col} según {columna}")
+            ax.set_xlabel(target_col)
+            ax.set_ylabel("Frecuencia")
+            ax.legend(title=columna)
+
+        # Ajusta espaciados para que títulos y ejes no se solapen.
+        plt.tight_layout()
+        plt.show()
+
+    return columnas_representadas
