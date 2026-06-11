@@ -207,3 +207,93 @@ def plot_features_cat_regression(
         Retorna None si algún argumento no es válido.
     """
     pass
+
+
+# ---------------------------------------------------------------------------
+# detect_outliers (BONUS)
+# ---------------------------------------------------------------------------
+
+def detect_outliers(df: pd.DataFrame, umbral_z: float = 3.0) -> dict:
+    """
+    Detecta valores atípicos (outliers) en las columnas numéricas de un DataFrame
+    usando dos métodos: rango intercuartílico (IQR) y Z-score.
+
+    Argumentos:
+        df (pd.DataFrame): DataFrame a analizar.
+        umbral_z (float): Número de desviaciones estándar a partir del cual un valor
+            se considera outlier por el método Z-score. Por defecto 3.0.
+
+    Retorna:
+        dict: Diccionario con una entrada por cada columna numérica. Para cada columna
+        se devuelve, en los métodos 'iqr' y 'zscore', un diccionario con:
+            - 'n_outliers' (int): número de outliers detectados.
+            - 'porcentaje' (float): porcentaje de outliers sobre el total de filas.
+            - 'indices' (list): índices del DataFrame donde están los outliers.
+        Retorna None si 'df' no es un DataFrame o 'umbral_z' no es un número positivo.
+    """
+    # Comprobación de entrada: df debe ser un DataFrame
+    if not isinstance(df, pd.DataFrame):
+        print("Error: 'df' debe ser un pandas DataFrame.")
+        return None
+
+    # Comprobación de entrada: umbral_z debe ser un número positivo (y no un booleano)
+    if not isinstance(umbral_z, (int, float)) or isinstance(umbral_z, bool) or umbral_z <= 0:
+        print("Error: 'umbral_z' debe ser un número positivo.")
+        return None
+
+    # Seleccionamos solo las columnas numéricas: son las únicas en las que tiene sentido buscar outliers
+    columnas_numericas = df.select_dtypes(include=np.number).columns
+
+    resultado = {}
+    total_filas = len(df)
+
+    # Recorremos cada columna numérica y calculamos sus outliers por los dos métodos
+    for col in columnas_numericas:
+        # Quitamos los nulos para los cálculos
+        serie = df[col].dropna()
+
+        # Si la columna no tiene datos válidos, devolvemos resultados vacíos para ella
+        if serie.empty:
+            resultado[col] = {
+                'iqr': {'n_outliers': 0, 'porcentaje': 0.0, 'indices': []},
+                'zscore': {'n_outliers': 0, 'porcentaje': 0.0, 'indices': []}
+            }
+            continue
+
+        # --- Método 1: IQR (rango intercuartílico) ---
+        q1 = serie.quantile(0.25)            # primer cuartil
+        q3 = serie.quantile(0.75)            # tercer cuartil
+        iqr = q3 - q1                        # rango intercuartílico
+        limite_inferior = q1 - 1.5 * iqr     # frontera por debajo
+        limite_superior = q3 + 1.5 * iqr     # frontera por encima
+        # Es outlier todo lo que queda fuera de esas fronteras
+        mascara_iqr = (serie < limite_inferior) | (serie > limite_superior)
+        indices_iqr = serie[mascara_iqr].index.tolist()
+
+        # --- Método 2: Z-score ---
+        media = serie.mean()
+        desviacion = serie.std()
+        if desviacion == 0:
+            # Si todos los valores son iguales no hay desviación y no hay outliers
+            indices_z = []
+        else:
+            z_scores = (serie - media) / desviacion
+            # Es outlier si se aleja de la media más de 'umbral_z' desviaciones
+            mascara_z = z_scores.abs() > umbral_z
+            indices_z = serie[mascara_z].index.tolist()
+
+        # Guardamos los resultados de los dos métodos para esta columna
+        resultado[col] = {
+            'iqr': {
+                'n_outliers': len(indices_iqr),
+                'porcentaje': round(len(indices_iqr) / total_filas * 100, 2),
+                'indices': indices_iqr
+            },
+            'zscore': {
+                'n_outliers': len(indices_z),
+                'porcentaje': round(len(indices_z) / total_filas * 100, 2),
+                'indices': indices_z
+            }
+        }
+
+    return resultado
