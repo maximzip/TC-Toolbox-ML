@@ -7,8 +7,8 @@ Paquete de Python con herramientas para análisis exploratorio de datos (EDA) y 
 ## Instalación
 
 ```bash
-git clone https://github.com/vuestro-grupo/toolbox_ml.git
-cd toolbox_ml
+git clone https://github.com/maximzip/TC-Toolbox-ML.git
+cd TC-Toolbox-ML
 python -m venv venv
 source venv/bin/activate   # Mac/Linux
 # venv\Scripts\activate   # Windows
@@ -58,11 +58,17 @@ pytest tests/ -v
 
 ---
 
+## Notebook demo
+
+El repositorio incluye un notebook de demostración en `notebooks/demo.ipynb`, donde se muestra el uso de las funciones principales del paquete con un dataset real.
+
+---
+
 ## Equipo
 
 | Nombre | Rol | Funciones |
 |--------|-----|-----------|
-| (nombre) | Scrum Master | Setup del repo, integración, notebook demo |
+| Victoria | Scrum Master | Setup del repo, integración final, notebook demo |
 | Maksym | Dev 1 | `describe_df`, `tipifica_variables` |
 | (nombre) | Dev 2 | `get/plot_features_num_regression` |
 | (nombre) | Dev 3 | `get/plot_features_cat_regression` |
