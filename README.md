@@ -68,11 +68,11 @@ El repositorio incluye un notebook de demostración en `notebooks/demo.ipynb`, d
 
 | Nombre | Rol | Funciones |
 |--------|-----|-----------|
-| Victoria | Scrum Master | Setup del repo, integración final, notebook demo |
-| Maksym | Dev 1 | `describe_df`, `tipifica_variables` |
-| (nombre) | Dev 2 | `get/plot_features_num_regression` |
-| (nombre) | Dev 3 | `get/plot_features_cat_regression` |
-
+| Victoria | Scrum Master | `Integración final, notebook demo` |
+| Maksym | Dev 1 | `Setup del repo, describe_df`, `tipifica_variables` |
+| Pablo | Dev 2 | `get/plot_features_num_regression` |
+| Daniel | Dev 3 | `get/plot_features_cat_regression` |
+| Ana | Dev 4 | `Bonus` |
 ---
 
 ## Stack tecnológico
