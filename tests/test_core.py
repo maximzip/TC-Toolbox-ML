@@ -2,6 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 
 from toolbox_ml.eda.core import (
@@ -342,3 +343,4 @@ def test_detect_outliers_umbral_z_invalido():
     assert detect_outliers(df, umbral_z=-1) is None
     assert detect_outliers(df, umbral_z="alto") is None
     
+    assert plot_features_cat_regression(df, "target", pvalue=1.5) is None

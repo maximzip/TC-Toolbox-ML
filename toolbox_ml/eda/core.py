@@ -16,11 +16,11 @@ def describe_df(df: pd.DataFrame) -> pd.DataFrame:
     Argumentos:
         df (pd.DataFrame): DataFrame a analizar.
 
-    Retorna:
+    Devuelve:
         pd.DataFrame: DataFrame con una fila por columna del input y las
         siguientes columnas: 'tipo', 'porcentaje_nulos', 'valores_unicos',
         'porcentaje_cardinalidad'.
-        Retorna None si el input no es un DataFrame válido.
+        Devuelve None si el input no es un DataFrame válido.
     """
     # Comprobación de entrada: debe ser un DataFrame
     if not isinstance(df, pd.DataFrame):
@@ -57,9 +57,9 @@ def tipifica_variables(
             variable deje de considerarse categórica.
         umbral_continua (float): Porcentaje mínimo de cardinalidad (0-100)
             para considerar una variable como numérica continua.
-    Retorna:
+    Devuelve:
         pd.DataFrame: DataFrame con columnas 'nombre_variable' y 'tipo_sugerido'.
-        Retorna None si algún argumento no es válido.
+        Devuelve None si algún argumento no es válido.
     """
 
     # Validaciones de entrada
@@ -149,9 +149,9 @@ def get_features_num_regression(
         pvalue (float, opcional): Si se indica, aplica un filtro adicional
             según el p-valor.
 
-    Retorna:
+    Devuelve:
         list: Lista con los nombres de las columnas que superan los criterios.
-        Retorna None si algún argumento no es válido.
+        Devuelve None si algún argumento no es válido.
     """
     if not _validar_regresion_numerica(df, target_col, umbral_corr, pvalue):
         return None
@@ -194,9 +194,9 @@ def plot_features_num_regression(
         umbral_corr (float): Umbral mínimo de correlación (entre 0 y 1).
         pvalue (float, opcional): Filtro adicional según el p-valor.
 
-    Retorna:
+    Devuelve:
         list: Lista de columnas representadas.
-        Retorna None si algún argumento no es válido.
+        Devuelve None si algún argumento no es válido.
     """
     if not _validar_regresion_numerica(df, target_col, umbral_corr, pvalue):
         return None
@@ -290,9 +290,9 @@ def get_features_cat_regression(
         target_col (str): Nombre de la columna target (debe ser numérica).
         pvalue (float): Umbral de significancia estadística (entre 0 y 1).
 
-    Retorna:
+    Devuelve:
         list: Lista con los nombres de las columnas categóricas significativas.
-        Retorna None si algún argumento no es válido.
+        Devuelve None si algún argumento no es válido.
     """
     # Abortamos cuanto antes si la entrada no cumple las condiciones mínimas.
     if not _validar_regresion_categorica(df, target_col, pvalue):
@@ -359,9 +359,9 @@ def plot_features_cat_regression(
         with_individual_plot (bool): Si True, genera una figura por variable;
             si False, agrupa todo en una sola figura con subplots.
 
-    Retorna:
+    Devuelve:
         list: Lista de columnas representadas.
-        Retorna None si algún argumento no es válido.
+        Devuelve None si algún argumento no es válido.
     """
     # Mismas validaciones que en _validar_regresion_categorica
     if not _validar_regresion_categorica(df, target_col, pvalue):
