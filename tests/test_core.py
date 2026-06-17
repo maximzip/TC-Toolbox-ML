@@ -48,6 +48,44 @@ def test_describe_df_retorna_none_con_input_invalido():
     assert describe_df("no es un dataframe") is None
     assert describe_df([1, 2, 3]) is None
 
+# ===========================================================================
+# tipifica_variables
+# ===========================================================================
+
+def test_tipifica_variables_detecta_categorica():
+    """Columna con pocos valores únicos (< umbral) → Categórica."""
+    df = pd.DataFrame({'color': ['rojo', 'verde', 'azul', 'rojo', 'verde']})
+    resultado = tipifica_variables(df, umbral_categoria=10, umbral_continua=30.0)
+    tipo = resultado.loc[resultado['nombre_variable'] == 'color', 'tipo_sugerido'].values[0]
+    assert tipo == "Categórica"
+
+
+def test_tipifica_variables_detecta_numerica_continua():
+    """Columna con alta cardinalidad → Numérica Continua."""
+    df = pd.DataFrame({'precio': [float(i) for i in range(100)]})
+    resultado = tipifica_variables(df, umbral_categoria=10, umbral_continua=30.0)
+    tipo = resultado.loc[resultado['nombre_variable'] == 'precio', 'tipo_sugerido'].values[0]
+    assert tipo == "Numérica Continua"
+
+
+def test_tipifica_variables_detecta_numerica_discreta():
+    """Columna con cardinalidad media y baja variabilidad → Numérica Discreta."""
+    # 100 filas pero solo 15 valores únicos → cardinalidad = 15%
+    df = pd.DataFrame({'edad': [i % 15 for i in range(100)]})
+    resultado = tipifica_variables(df, umbral_categoria=10, umbral_continua=30.0)
+    tipo = resultado.loc[resultado['nombre_variable'] == 'edad', 'tipo_sugerido'].values[0]
+    assert tipo == "Numérica Discreta"
+
+
+def test_tipifica_variables_retorna_none_df_invalido():
+    """Input no es DataFrame → retorna None."""
+    assert tipifica_variables("texto", umbral_categoria=10, umbral_continua=30.0) is None
+
+
+def test_tipifica_variables_retorna_none_umbral_continua_invalido():
+    """umbral_continua fuera de rango → retorna None."""
+    df = pd.DataFrame({'a': [1, 2, 3]})
+    assert tipifica_variables(df, umbral_categoria=10, umbral_continua=150.0) is None
 
 # ===========================================================================
 # get_features_num_regression
